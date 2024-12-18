@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processador de XML</title>
+    <!-- Bootstrap CSS via CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+        .btn-custom {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+        }
+        .table thead th {
+            vertical-align: middle;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .table tbody td {
+            vertical-align: middle;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px; /* Redução do max-width para evitar overflow */
+        }
+        .file-input-label {
+            cursor: pointer;
+        }
+        /* Animações */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        /* Ajuste para remover possível overflow */
+        .table-responsive {
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Processador de XML</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Alternar navegação">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <!-- Itens adicionais do navbar podem ser adicionados aqui -->
+        </div>
+    </nav>
+
+    <!-- Container Principal -->
+    <div class="container my-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Upload de Arquivos XML</h5>
+            </div>
+            <div class="card-body">
+                <!-- Seção de Upload -->
+                <div class="mb-4 text-center">
+                    <label for="file-input" class="btn btn-primary btn-custom">
+                        <i class="bi bi-upload me-2"></i> Escolher Arquivos
+                    </label>
+                    <input id="file-input" class="d-none" type="file" multiple>
+                </div>
+                <!-- Seção de Ações -->
+                <div class="d-flex justify-content-center align-items-center mb-4 flex-wrap">
+                    <button type="button" class="btn btn-success btn-custom mx-2 my-2" id="btn-process">
+                        <i class="bi bi-gear-fill me-2"></i> Processar
+                    </button>
+                    <span class="file-count align-self-center fs-5">Nenhum arquivo selecionado</span>
+                </div>
+                <!-- Botão de Exportação -->
+                <div class="text-center mb-4">
+                    <button type="button" class="btn btn-info btn-custom" id="btn-export" hidden>
+                        <i class="bi bi-file-earmark-excel-fill me-2"></i> Exportar para Excel
+                    </button>
+                </div>
+                <!-- Mensagem de Status -->
+                <div class="status-message text-center text-primary mb-4 fade-in" id="status-message"></div>
+                <!-- Spinner de Carregamento -->
+                <div class="text-center mb-4" id="spinner" hidden>
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                </div>
+                <!-- Tabela de Dados Processados -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered align-middle" id="processed-data">
+                        <thead class="table-primary">
+                            <tr id="header-row"></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <!-- Paginação -->
+                <!-- Adicionamos a classe 'mt-4' para adicionar mais espaço acima da paginação -->
+                <nav aria-label="Navegação de página" class="d-none mt-4" id="pagination-nav">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item">
+                            <button class="page-link prev-page mx-1" disabled>
+                                <i class="bi bi-arrow-left"></i> Anterior
+                            </button>
+                        </li>
+                        <li class="page-item">
+                            <button class="page-link next-page mx-1" disabled>
+                                Próxima <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast de Notificação -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+        <div id="toast-notification" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toast-body">
+                    Notificação
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS via CDN (inclui Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script>
+        // Elementos do DOM
+        const fileInput = document.getElementById('file-input');
+        const fileCount = document.querySelector('.file-count');
+        const btnProcess = document.getElementById('btn-process');
+        const btnExport = document.getElementById('btn-export');
+        const headerRow = document.getElementById('header-row');
+        const tbody = document.querySelector('#processed-data tbody');
+        const paginationNav = document.getElementById('pagination-nav');
+        const prevPageBtn = document.querySelector('.prev-page');
+        const nextPageBtn = document.querySelector('.next-page');
+        const statusMessage = document.getElementById('status-message');
+        const spinner = document.getElementById('spinner');
+        const toastNotification = new bootstrap.Toast(document.getElementById('toast-notification'));
+        const toastBody = document.getElementById('toast-body');
+
+        let items = [];
+        let tableData = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        const batchSize = 1000;
+        let files = [];
+
+        const columns = [
+            'Chave de Acesso da Nota Fiscal', 'Número da NF', 'Número de Série da NF', 'Tipo de Operação',
+            'Data Emissão', 'Data Saída da Mercadoria', 'Natureza da Operação', 'CNPJ/CPF Emitente',
+            'Nome Emitente', 'CNPJ/CPF Destinatário', 'Nome Destinatário', 'Estado de Origem', 'Estado de Destino',
+            'Descrição Produto', 'NCM', 'CFOP', 'Valor do Produto', 'Valor Frete Produto',
+            'Valor Desconto Produto', 'Outras Despesas', 'Seguro', 'Valor Contábil', 'Quantidade',
+            'Unidade', 'CST ICMS', 'CSOSN', 'Base de ICMS', 'Valor do ICMS', 'Alíquota de ICMS',
+            'Valor Crédito ICMS', 'Valor Crédito ICMS Simples', 'Percentual Crédito ICMS Simples',
+            'Origem da Mercadoria ICMS', 'CST IPI', 'Valor do IPI', 'Valor do IPI Devolvido',
+            'CST PIS', 'Valor do PIS', 'Alíquota de PIS', 'CST COFINS', 'Valor do COFINS',
+            'Alíquota de COFINS', 'MVA', 'Valor FCP', 'Valor ST', 'Campo DI', 'Informações Complementares',
+            'Classificação'
+        ];
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            renderTableHeader();
+        });
+
+        // Renderiza o cabeçalho da tabela
+        function renderTableHeader() {
+            headerRow.innerHTML = '';
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.scope = 'col';
+                th.textContent = col;
+                th.classList.add('text-nowrap');
+                headerRow.appendChild(th);
+            });
+        }
+
+        // Atualiza a contagem de arquivos selecionados
+        fileInput.addEventListener('change', () => {
+            files = Array.from(fileInput.files);
+            fileCount.textContent = files.length > 0 ? `${files.length} arquivo(s) selecionado(s)` : 'Nenhum arquivo selecionado';
+        });
+
+        // Processa os arquivos XML
+        btnProcess.addEventListener('click', async () => {
+            if (files.length === 0) {
+                showToast('Por favor, selecione um ou mais arquivos XML.', 'warning');
+                return;
+            }
+
+            // Reseta dados anteriores
+            items = [];
+            tableData = [];
+            currentPage = 1;
+            tbody.innerHTML = '';
+            paginationNav.classList.add('d-none');
+            btnExport.hidden = true;
+            statusMessage.textContent = '';
+            spinner.hidden = false;
+
+            let currentBatch = 0;
+
+            while (files.length > 0) {
+                const batch = files.splice(0, batchSize);
+                const formData = new FormData();
+
+                batch.forEach((file, index) => {
+                    formData.append(`file_${index}`, file);
+                });
+
+                try {
+                    const response = await fetch('/upload_xml', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        items = items.concat(data.items);
+                        updateTable(items);
+                        btnExport.hidden = false;
+                        currentBatch++;
+                        statusMessage.textContent = `Lote ${currentBatch} processado com sucesso! Total de arquivos processados: ${batch.length}.`;
+                        showToast(`Lote ${currentBatch} processado com sucesso!`, 'success');
+                    } else {
+                        statusMessage.textContent = 'Erro ao processar os arquivos.';
+                        showToast('Erro ao processar os arquivos.', 'danger');
+                        break;
+                    }
+                } catch (error) {
+                    console.error('Erro ao processar os arquivos:', error);
+                    statusMessage.textContent = 'Erro ao processar os arquivos.';
+                    showToast('Erro ao processar os arquivos.', 'danger');
+                    break;
+                }
+            }
+
+            spinner.hidden = true;
+            if (items.length > 0) {
+                statusMessage.textContent += ' Todos os lotes foram processados com sucesso!';
+                showToast('Todos os lotes foram processados com sucesso!', 'info');
+            }
+        });
+
+        // Exporta os dados para Excel
+        btnExport.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/exportar_excel', { method: 'POST' });
+                const result = await response.json();
+
+                if (response.ok) {
+                    window.location.href = result.filename;
+                    showToast('Exportação iniciada!', 'success');
+                } else {
+                    showToast(`Erro ao exportar para Excel: ${result.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Erro ao exportar para Excel:', error);
+                showToast(`Erro ao exportar para Excel: ${error.message}`, 'danger');
+            }
+        });
+
+        // Atualiza a tabela com os dados processados
+        function updateTable(items) {
+            tableData = items;
+            renderPage();
+            paginationNav.classList.remove('d-none');
+            updatePaginationButtons();
+        }
+
+        // Renderiza a página atual da tabela
+        function renderPage() {
+            tbody.innerHTML = '';
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const paginatedItems = tableData.slice(start, end);
+
+            paginatedItems.forEach(item => {
+                const tr = document.createElement('tr');
+                columns.forEach(col => {
+                    const td = document.createElement('td');
+                    const cellData = item[col] || 'Não encontrado';
+                    td.textContent = cellData;
+                    td.classList.add('text-truncate');
+                    td.setAttribute('data-bs-toggle', 'tooltip');
+                    td.setAttribute('data-bs-placement', 'top');
+                    td.setAttribute('title', cellData);
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+
+            // Inicializa os tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+
+        // Atualiza os botões de paginação
+        function updatePaginationButtons() {
+            const totalPages = Math.ceil(tableData.length / itemsPerPage);
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
+
+            prevPageBtn.classList.toggle('disabled', prevPageBtn.disabled);
+            nextPageBtn.classList.toggle('disabled', nextPageBtn.disabled);
+        }
+
+        // Eventos de paginação
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage();
+                updatePaginationButtons();
+            }
+        });
+
+        nextPageBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(tableData.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderPage();
+                updatePaginationButtons();
+            }
+        });
+
+        // Função para exibir toasts de notificação
+        function showToast(message, type) {
+            const toastEl = document.getElementById('toast-notification');
+            const toastBodyEl = document.getElementById('toast-body');
+            toastBodyEl.textContent = message;
+            toastEl.className = `toast align-items-center text-bg-${type} border-0`;
+            toastNotification.show();
+        }
+
+        // Função de logout (se necessária)
+        function logout() {
+            fetch('/logout', { method: 'GET' })
+            .then(response => response.json())
+            .then(data => {
+                showToast(data.message, 'warning');
+                window.location.href = '/';
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                showToast("Erro ao processar o logout.", 'danger');
+            });
+        }
+    </script>
+</body>
+</html>
