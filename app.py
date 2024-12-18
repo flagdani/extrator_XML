@@ -6,10 +6,10 @@ import pandas as pd
 from extrator_xml import ExtratorXML
 
 app = Flask(__name__)
-app.secret_key = 'sua_chave_secreta_aqui'  # Substitua por uma chave secreta segura
+app.secret_key = 'sua_chave_secreta_aqui'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['PROCESSED_FOLDER'] = 'processed'
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Limite de 50MB por upload
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
 PREVIEW_LIMIT = 500
 
